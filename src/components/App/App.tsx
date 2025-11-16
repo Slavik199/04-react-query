@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import ReactPaginate from 'react-paginate';
 import toast, { Toaster } from 'react-hot-toast';
@@ -18,15 +18,29 @@ export default function App() {
   const [page, setPage] = useState(1);
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
 
-  const { data, isLoading, isError } = useQuery({
+  const {
+    data,
+    isLoading,
+    isError,
+    isSuccess,
+    isFetching,
+  } = useQuery({
     queryKey: ['movies', query, page],
     queryFn: () => fetchMovies(query, page),
     enabled: !!query,
     staleTime: 1000 * 60 * 5,
+    placeholderData: (previousData) => previousData,
   });
 
   const movies = data?.results ?? [];
   const totalPages = data?.total_pages ?? 0;
+
+ 
+  useEffect(() => {
+    if (isSuccess && movies.length === 0 && query) {
+      toast.error('No movies found for your query.');
+    }
+  }, [isSuccess, movies.length, query]);
 
   const handleSearch = (searchQuery: string) => {
     if (!searchQuery.trim()) {
@@ -49,9 +63,9 @@ export default function App() {
       <SearchBar onSubmit={handleSearch} />
 
       <main>
-        {isLoading && <Loader />}
+        {(isLoading || isFetching) && <Loader />}
         {isError && <ErrorMessage />}
-        {!isLoading && !isError && movies.length > 0 && (
+        {isSuccess && movies.length > 0 && (
           <>
             <MovieGrid movies={movies} onSelect={openModal} />
             {totalPages > 1 && (
